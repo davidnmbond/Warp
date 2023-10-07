@@ -1,0 +1,14 @@
+﻿@page "/"
+@using SkiaSharp.Views.Blazor
+
+<PageTitle>Index</PageTitle>
+
+<div class="canvas-container">
+	<SKCanvasView
+		@ref="_canvasView"
+		OnPaintSurface="OnPaintSurface" 
+		IgnorePixelScaling="true"
+		EnableRenderLoop="true"
+		style=@Style
+		/>
+</div>

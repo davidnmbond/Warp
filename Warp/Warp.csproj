@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<LangVersion>preview</LangVersion>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<RunAOTCompilation>false</RunAOTCompilation>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="Pages\Index.razor.css" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="Pages\Index.razor.css" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0-rc.1.23421.29" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.0-rc.1.23421.29" PrivateAssets="all" />
+		<PackageReference Include="SkiaSharp.Views.Blazor" Version="2.88.6" />
+	</ItemGroup>
+
+</Project>
