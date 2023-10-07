@@ -8,6 +8,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{970C9925-F247-4139-BFEC-55DD6CFBDD3F}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		Tag.ps1 = Tag.ps1
+		version.json = version.json
 		Warp.dic = Warp.dic
 	EndProjectSection
 EndProject
