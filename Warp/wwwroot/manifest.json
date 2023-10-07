@@ -17,5 +17,8 @@
 	],
 	"theme_color": "#ffee00",
 	"background_color": "#ffee00",
-	"display": "standalone"
+	"display": "standalone",
+	"author": "David Bond",
+	"description": "Warp your way through the levels!",
+	"orientation": "any"
 }
