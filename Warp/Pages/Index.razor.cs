@@ -15,6 +15,9 @@ public partial class Index : IDisposable
 	private Renderer? _renderer;
 	private FpsCounter? _fpsCounter;
 	private SKCanvasView? _canvasView;
+	private int _time;
+	private int _xPixelOffset;
+	private int _yPixelOffset;
 	private readonly SKPaint _paint = new()
 	{
 		IsAntialias = true,
@@ -25,11 +28,16 @@ public partial class Index : IDisposable
 		Color = SKColors.Green
 	};
 	private bool disposedValue;
+	private TileMap? _tileMap;
 
 	[Inject] private NavigationManager? NavigationManager { get; set; }
+	[Inject] private HttpClient? HttpClient { get; set; }
 
 	protected async override Task OnInitializedAsync()
 	{
+		var cacheBuster = (int)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
+		_tileMap = new TileMap(new Uri($"{NavigationManager!.BaseUri}/maps/w01-01.txt?_={cacheBuster}"));
+		await _tileMap.LoadAsync(HttpClient!, default);
 		await base.OnInitializedAsync();
 	}
 
@@ -46,9 +54,14 @@ public partial class Index : IDisposable
 			SKAlphaType.Premul);
 		_fpsCounter ??= new FpsCounter();
 
+		_time++;
+
+		_xPixelOffset = _time;
+		_yPixelOffset = (int)(100 * Math.Sin((float)_time / 10));
+
 		unsafe
 		{
-			fixed (uint* ptr = _renderer.UpdateFrameBuffer())
+			fixed (uint* ptr = _renderer.UpdateFrameBuffer(_tileMap, _xPixelOffset, _yPixelOffset))
 			{
 				_bitmap.SetPixels((IntPtr)ptr);
 			}
