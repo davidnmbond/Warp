@@ -104,6 +104,7 @@ public class Renderer
 		{
 			throw new Exception("Player sprite not found");
 		}
+
 		var playerFrame = playerSprite.GetFrame(0);
 
 		var playerPixelIndex = 0;
