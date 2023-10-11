@@ -1,13 +1,13 @@
 ﻿
 namespace Warp.Game;
 
-public class TileMap(Uri uri)
+internal class TileMap(Uri uri, SpriteMap spriteMap)
 {
 	private const int MinLineLength = 60;
 
-	internal char[,] Background { get; private set; } = new char[0, 0];
+	internal Sprite[,] Background { get; private set; } = new Sprite[0, 0];
 
-	internal char[,] Foreground { get; private set; } = new char[0, 0];
+	internal Sprite?[,] Foreground { get; private set; } = new Sprite?[0, 0];
 
 	internal bool IsLoaded { get; private set; }
 
@@ -50,8 +50,8 @@ public class TileMap(Uri uri)
 				LineLength = line.Length;
 				LineCount = lines.Count();
 
-				Background = new char[LineCount, LineLength / 2];
-				Foreground = new char[LineCount, LineLength / 2];
+				Background = new Sprite[LineCount, LineLength / 2];
+				Foreground = new Sprite[LineCount, LineLength / 2];
 			}
 			else if (line.Length != LineLength)
 			{
@@ -63,10 +63,12 @@ public class TileMap(Uri uri)
 			var x = 0;
 			while (i < line.Length)
 			{
+				var backgroundCharacter = line[i++];
+				var foregroundCharacter = line[i++];
 				try
 				{
-					Background![lineIndex, x] = line[i++];
-					Foreground![lineIndex, x++] = line[i++];
+					Background![lineIndex, x] = spriteMap[backgroundCharacter];
+					Foreground![lineIndex, x++] = foregroundCharacter == '.' ? null : spriteMap[foregroundCharacter];
 				}
 				catch (Exception ex)
 				{

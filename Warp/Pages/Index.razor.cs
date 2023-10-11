@@ -15,7 +15,7 @@ public partial class Index : IDisposable
 	private Renderer? _renderer;
 	private FpsCounter? _fpsCounter;
 	private SKCanvasView? _canvasView;
-	private Dictionary<string, Sprite>? _spriteSet;
+	private SpriteMap? _spriteMap;
 	private int _time;
 	private int _xPixelOffset;
 	private int _yPixelOffset;
@@ -41,13 +41,11 @@ public partial class Index : IDisposable
 	{
 		var cacheBuster = (int)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalSeconds;
 
-		_tileMap = new TileMap(new Uri($"{NavigationManager!.BaseUri}/maps/w01-01.txt?_={cacheBuster}"));
+		_spriteMap = new SpriteMap(new Uri($"{NavigationManager!.BaseUri}/sprites/sprites.png?_={cacheBuster}"));
+		await _spriteMap.LoadAsync(ImageLoader!, default);
+
+		_tileMap = new TileMap(new Uri($"{NavigationManager!.BaseUri}/maps/w01-01.txt?_={cacheBuster}"), _spriteMap);
 		await _tileMap.LoadAsync(HttpClient!, default);
-
-		var spriteMap = new SpriteMap(new Uri($"{NavigationManager!.BaseUri}/sprites/sprites.png?_={cacheBuster}"));
-		await spriteMap.LoadAsync(ImageLoader!, default);
-
-		_spriteSet = spriteMap.GetSprites();
 
 		await base.OnInitializedAsync();
 	}
@@ -56,13 +54,13 @@ public partial class Index : IDisposable
 
 	private void OnPaintSurface(SKPaintSurfaceEventArgs e)
 	{
-		if (_tileMap is null || _spriteSet is null)
+		if (_tileMap is null || _spriteMap is null)
 		{
 			return;
 		}
 
 		var surfaceSize = e.Info.Size;
-		_renderer ??= new Renderer(surfaceSize.Width, surfaceSize.Height);
+		_renderer ??= new Renderer(_spriteMap, surfaceSize.Width, surfaceSize.Height);
 		_bitmap ??= new SKBitmap(
 			e.Info.Width,
 			e.Info.Height,
@@ -79,7 +77,6 @@ public partial class Index : IDisposable
 		{
 			fixed (uint* ptr = _renderer.UpdateFrameBuffer(
 				_tileMap,
-				_spriteSet,
 				_xPixelOffset,
 				_yPixelOffset))
 			{

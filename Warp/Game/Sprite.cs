@@ -4,13 +4,15 @@ namespace Warp.Game;
 
 internal class Sprite
 {
-	private readonly uint[] _pixels;
+	internal uint[] Pixels { get; set; }
+
+	internal string Name { get; }
 
 	internal int FrameCount { get; }
 
-	internal Sprite(SKBitmap bitmap, int tileX, int tileY, int frameCount)
+	internal Sprite(SKBitmap bitmap, string name, int tileX, int tileY, int frameCount)
 	{
-		_pixels = new uint[32 * 32 * frameCount];
+		Pixels = new uint[32 * 32 * frameCount];
 
 		for (int frameIndex = 0; frameIndex < frameCount; frameIndex++)
 		{
@@ -21,11 +23,11 @@ internal class Sprite
 				for (int x = 0; x < 32; x++)
 				{
 					uint tileColour = MakePixel(bitmap.GetPixel(x + xOffset, y + yOffset));
-					_pixels[x + y * 32 + frameIndex * 32 * 32] = tileColour;
+					Pixels[x + y * 32 + frameIndex * 32 * 32] = tileColour;
 				}
 			}
 		}
-
+		Name = name;
 		FrameCount = frameCount;
 	}
 
@@ -35,7 +37,7 @@ internal class Sprite
 	internal uint[] GetFrame(int frameIndex)
 	{
 		var frame = new uint[32 * 32];
-		Array.Copy(_pixels, frameIndex * 32 * 32, frame, 0, 32 * 32);
+		Array.Copy(Pixels, frameIndex * 32 * 32, frame, 0, 32 * 32);
 		return frame;
 	}
 }

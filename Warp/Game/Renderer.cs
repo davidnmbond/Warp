@@ -1,21 +1,22 @@
 ﻿namespace Warp.Game;
 
-public class Renderer
+internal class Renderer
 {
 	private const int WarpSize = 10;
 
 	private readonly uint[] _buffer;
 	private readonly MorphSpec[] _morphMap;
+	private readonly uint[] _playerFrame;
 	public int _viewportHeight;
 	public int _viewportWidth;
-	private int t;
 
-	public Renderer(int viewportWidth, int viewportHeight)
+	public Renderer(SpriteMap spriteMap, int viewportWidth, int viewportHeight)
 	{
 		_viewportWidth = viewportWidth;
 		_viewportHeight = viewportHeight;
 		_buffer = new uint[_viewportHeight * _viewportWidth];
 		_morphMap = GetMorphMap();
+		_playerFrame = spriteMap['p'].GetFrame(0);
 	}
 
 	private MorphSpec[] GetMorphMap()
@@ -59,7 +60,6 @@ public class Renderer
 
 	internal unsafe uint[] UpdateFrameBuffer(
 		TileMap tileMap,
-		Dictionary<string, Sprite> spriteSet,
 		int xPixelOffset,
 		int yPixelOffset
 		)
@@ -86,26 +86,13 @@ public class Renderer
 
 				var backgroundTile = tileMap.Background[warpedTileY, warpedTileX];
 
-				_buffer[bufferIndex++] = backgroundTile switch
-				{
-					// 0xAABBGGRR (Abgr model)
-					'\'' => 0xffffaaaa, // Sky
-					'#' => 0xff448888, // Rock
-					'c' => 0xffffffff, // Cloud
-					_ => 0xff888888, // Other (grey)
-				};
+				_buffer[bufferIndex++] = backgroundTile.Pixels[warpedX % 32 + (warpedY % 32) * 32];
 			}
 		}
 
 		// Draw player
 		var midViewPortXStart = _viewportWidth / 2 - 16;
 		var midViewPortYStart = _viewportHeight / 2 - 16;
-		if (!spriteSet.TryGetValue("Player", out var playerSprite))
-		{
-			throw new Exception("Player sprite not found");
-		}
-
-		var playerFrame = playerSprite.GetFrame(0);
 
 		var playerPixelIndex = 0;
 
@@ -113,7 +100,7 @@ public class Renderer
 		{
 			for (int playerPixelX = midViewPortXStart; playerPixelX < midViewPortXStart + 32; playerPixelX++)
 			{
-				uint pixel = playerFrame[playerPixelIndex++];
+				uint pixel = _playerFrame[playerPixelIndex++];
 				// Is this a transparent pixel?
 				if ((pixel & 0xff000000) == 0)
 				{
