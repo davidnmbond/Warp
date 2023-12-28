@@ -1,0 +1,46 @@
+﻿@page "/AudioPlayer"
+@using System.Globalization;
+@using KristofferStrube.Blazor.WebAudio
+
+<PageTitle>WebAudio - Audio Player</PageTitle>
+
+<h2>Audio Player</h2>
+
+<div style="user-select: none;display:flex;flex-direction:row;" aria-label="Player controls">
+	<button class="media-control" aria-label="Randomize tracks" @onclick="RandomizeTracks">🔀</button>
+	<button class="media-control" aria-label="Previous track" @onclick="PreviousTrack">⏮</button>
+	@if (playing)
+	{
+		<button class="media-control" aria-label="Pause" @onclick="PauseAsync">⏸</button>
+	}
+	else
+	{
+		<button class="media-control" aria-label="Play" @onclick="PlayAsync">⏯</button>
+	}
+	<button class="media-control" aria-label="Next track" @onclick="NextTrack">⏭</button>
+</div>
+
+<span style="width:5%; display:inline-block; text-align:right;">
+	@Math.Round(playTime, 0)
+</span>
+
+<svg width="60%" viewBox="0 0 1 0.02" style="margin-left:5px; margin-right:5px;">
+	<rect fill="#bbb" x="0" y="0" width="1" height="0.02"></rect>
+	@if (trackDuration is not 0)
+	{
+		<rect fill="#555" x="0" y="0" width="@((playTime/trackDuration).ToString(CultureInfo.InvariantCulture))" height="0.02"></rect>
+	}
+</svg>
+
+<span style="width:5%; display:inline-block;">
+	@(trackDuration > 0 ? Math.Round(trackDuration, 0) : "")
+</span>
+
+<p>
+	<ol>
+		@for (int i = 0; i < tracks.Count; i++)
+		{
+			<li class="@(i == currentTrack ? "track-selected" : "track-unselected")">@tracks[i].Split('/')[1]</li>
+		}
+	</ol>
+</p>
