@@ -26,21 +26,21 @@
 
 <svg width="60%" viewBox="0 0 1 0.02" style="margin-left:5px; margin-right:5px;">
 	<rect fill="#bbb" x="0" y="0" width="1" height="0.02"></rect>
-	@if (trackDuration is not 0)
+	@if (_currentTrack is not null && _currentTrack.Duration != TimeSpan.Zero)
 	{
-		<rect fill="#555" x="0" y="0" width="@((playTime/trackDuration).ToString(CultureInfo.InvariantCulture))" height="0.02"></rect>
+		<rect fill="#555" x="0" y="0" width="@((playTime/_currentTrack.Duration.TotalSeconds).ToString(CultureInfo.InvariantCulture))" height="0.02"></rect>
 	}
 </svg>
 
 <span style="width:5%; display:inline-block;">
-	@(trackDuration > 0 ? Math.Round(trackDuration, 0) : "")
+	@(_currentTrack is not null && _currentTrack.Duration > TimeSpan.Zero ? Math.Round(_currentTrack.Duration.TotalSeconds, 0) : "")
 </span>
 
 <p>
 	<ol>
-		@for (int i = 0; i < tracks.Count; i++)
+		@for (int i = 0; i < _tracks.Count; i++)
 		{
-			<li class="@(i == currentTrack ? "track-selected" : "track-unselected")">@tracks[i].Split('/')[1]</li>
+			<li class="@(i == trackIndex ? "track-selected" : "track-unselected")">@_tracks[i].Name</li>
 		}
 	</ol>
 </p>
