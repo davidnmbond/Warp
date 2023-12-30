@@ -13,14 +13,12 @@ public partial class AudioPlayer : IAsyncDisposable
 	[Inject]
 	public required HttpClient HttpClient { get; set; }
 
-	private bool playing;
-	private bool currentTrackLoaded = false;
-	private int trackIndex = 0;
-	private double playTime;
+	private PlayState _playState = PlayState.Stopped;
+	private int _trackIndex = 0;
+	private TimeSpan playTime;
 	private double startTime;
 	private double? pauseTime;
 	private double offset;
-	private int interactions;
 	private List<Track> _tracks = [
 		new(new("sounds/birdchirp.wav", UriKind.Relative)),
 		new(new("sounds/birdchirp2.wav", UriKind.Relative)),
@@ -30,35 +28,56 @@ public partial class AudioPlayer : IAsyncDisposable
 
 	private AudioContext? _audioContext;
 	private AudioDestinationNode? _audioDestinationNode;
+	private CancellationTokenSource? _taskSwitcherCancellationTokenSource;
+	private Task? _trackSwitcherTask;
 	private AudioBufferSourceNode? _currentAudioBufferNode;
 	private Track? _currentTrack;
 
 	protected override async Task OnInitializedAsync()
 	{
-		try
+		_audioContext = await AudioContext.CreateAsync(JSRuntime);
+		_audioDestinationNode = await _audioContext.GetDestinationAsync();
+		_taskSwitcherCancellationTokenSource = new CancellationTokenSource();
+		_trackSwitcherTask = TrackSwitcherAsync(_audioContext, _taskSwitcherCancellationTokenSource.Token);
+	}
+
+	private async Task TrackSwitcherAsync(AudioContext _audioContext, CancellationToken token)
+	{
+		while (!token.IsCancellationRequested)
 		{
-			_audioContext = await AudioContext.CreateAsync(JSRuntime);
-			_audioDestinationNode = await _audioContext.GetDestinationAsync();
-		}
-		catch
-		{
-			Console.WriteLine("Couldn't initialize yet.");
+			if (_playState == PlayState.Playing && _currentTrack is not null)
+			{
+				playTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync() - startTime + offset);
+				if (playTime > _currentTrack.Duration)
+				{
+					await NextTrackAsync();
+					StateHasChanged();
+				}
+			}
+
+			try
+			{
+				await Task.Delay(100, token);
+			}
+			catch (TaskCanceledException)
+			{
+				return;
+			}
 		}
 	}
 
 	public async Task EnsureCurrentTrackLoadedAsync()
 	{
-		if (currentTrackLoaded || _audioContext is null)
+		_currentTrack = _tracks[_trackIndex];
+
+		if (_currentTrack.IsLoaded == true || _audioContext is null)
 		{
 			return;
 		}
 
-		_currentTrack = _tracks[trackIndex];
-
 		try
 		{
 			await _currentTrack.LoadAsync(HttpClient, _audioContext);
-			currentTrackLoaded = true;
 		}
 		catch (HttpRequestException e)
 		{
@@ -68,16 +87,15 @@ public partial class AudioPlayer : IAsyncDisposable
 
 	public async Task PlayAsync()
 	{
-		if (playing || _audioContext is null || _audioDestinationNode is null || _currentTrack is null)
+		if (_playState == PlayState.Playing || _audioContext is null || _audioDestinationNode is null)
 		{
 			return;
 		}
 
-		interactions++;
 		await EnsureCurrentTrackLoadedAsync();
 
 		_currentAudioBufferNode = await _audioContext.CreateBufferSourceAsync();
-		await _currentAudioBufferNode.SetBufferAsync(_currentTrack.AudioBuffer);
+		await _currentAudioBufferNode.SetBufferAsync(_currentTrack!.AudioBuffer);
 		await _currentAudioBufferNode.ConnectAsync(_audioDestinationNode);
 		if (pauseTime is null)
 		{
@@ -90,35 +108,21 @@ public partial class AudioPlayer : IAsyncDisposable
 
 		startTime = await _audioContext.GetCurrentTimeAsync();
 
-		playing = true;
-		var currentInteractions = interactions;
-		while (currentInteractions == interactions)
-		{
-			playTime = await _audioContext.GetCurrentTimeAsync() - startTime + offset;
-			StateHasChanged();
-			if (playTime >= _currentTrack.Duration.TotalSeconds)
-			{
-				await NextTrack();
-			}
-
-			await Task.Delay(100);
-		}
+		_playState = PlayState.Playing;
 	}
 
 	public async Task PauseAsync()
 	{
-		if (!playing || _currentAudioBufferNode is null || _audioContext is null || _currentTrack is null)
+		if (_playState != PlayState.Playing || _currentAudioBufferNode is null || _audioContext is null || _currentTrack is null)
 		{
 			return;
 		}
-
-		interactions++;
 
 		await _currentAudioBufferNode.DisconnectAsync();
 		await _currentAudioBufferNode.StopAsync();
 
 		var currentTime = await _audioContext.GetCurrentTimeAsync();
-		pauseTime = await _audioContext.GetCurrentTimeAsync();
+		pauseTime = currentTime;
 		if (offset + currentTime - startTime > _currentTrack.Duration.TotalSeconds)
 		{
 			offset = 0;
@@ -128,27 +132,30 @@ public partial class AudioPlayer : IAsyncDisposable
 			offset += currentTime - startTime;
 		}
 
-		playing = false;
+		_playState = PlayState.Paused;
 	}
 
-	public Task PreviousTrack() => SwitchTrack(() => trackIndex = (trackIndex - 1 + _tracks.Count) % _tracks.Count);
+	public Task PreviousTrack() => SwitchTrack(_trackIndex = (_trackIndex - 1 + _tracks.Count) % _tracks.Count);
 
-	public Task NextTrack() => SwitchTrack(() => trackIndex = (trackIndex + 1) % _tracks.Count);
+	public Task NextTrackAsync() => SwitchTrack(_trackIndex = (_trackIndex + 1) % _tracks.Count);
 
-	private async Task SwitchTrack(Action changeTrack)
+	private async Task SwitchTrack(int trackIndex)
 	{
-		var wasPlaying = playing;
-		if (wasPlaying)
+		// Pause if necessary
+		var oldPlayState = _playState;
+		if (oldPlayState == PlayState.Playing)
 		{
 			await PauseAsync();
 		}
 
-		changeTrack();
-		currentTrackLoaded = false;
+		// Switch track
+		_trackIndex = trackIndex;
 		await EnsureCurrentTrackLoadedAsync();
 		offset = 0;
-		playTime = 0;
-		if (wasPlaying)
+		playTime = TimeSpan.Zero;
+
+		// Resume if necessary
+		if (oldPlayState == PlayState.Playing)
 		{
 			await PlayAsync();
 		}
@@ -156,8 +163,8 @@ public partial class AudioPlayer : IAsyncDisposable
 
 	public async Task RandomizeTracks()
 	{
-		var wasPlaying = playing;
-		if (wasPlaying)
+		var oldPlayState = _playState;
+		if (oldPlayState == PlayState.Playing)
 		{
 			await PauseAsync();
 		}
@@ -166,11 +173,12 @@ public partial class AudioPlayer : IAsyncDisposable
 			.OrderBy(x => Random.Shared.Next())
 			.ToList();
 
-		currentTrackLoaded = false;
-		trackIndex = 0;
+		_trackIndex = 0;
 		offset = 0;
-		playTime = 0;
-		if (wasPlaying)
+		playTime = TimeSpan.Zero;
+
+
+		if (oldPlayState == PlayState.Playing)
 		{
 			await PlayAsync();
 		}
@@ -179,5 +187,38 @@ public partial class AudioPlayer : IAsyncDisposable
 	public async ValueTask DisposeAsync()
 	{
 		await PauseAsync();
+
+		_taskSwitcherCancellationTokenSource?.Cancel();
+		if (_trackSwitcherTask is not null)
+		{
+			await _trackSwitcherTask;
+		}
+
+		_taskSwitcherCancellationTokenSource?.Dispose();
+
+		if (_audioContext is not null)
+		{
+			await _audioContext.CloseAsync();
+		}
+
+		if (_audioContext is not null)
+		{
+			await _audioContext.DisposeAsync();
+		}
+
+		if (_audioDestinationNode is not null)
+		{
+			await _audioDestinationNode.DisposeAsync();
+		}
+
+		if (_currentAudioBufferNode is not null)
+		{
+			await _currentAudioBufferNode.DisposeAsync();
+		}
+
+		if (_currentTrack is not null)
+		{
+			await ((IAsyncDisposable)_currentTrack).DisposeAsync();
+		}
 	}
 }

@@ -2,7 +2,7 @@
 
 namespace Warp.Models.Audio;
 
-public class Track(Uri uri)
+public class Track(Uri uri) : IAsyncDisposable
 {
 	public Uri Uri { get; } = uri;
 
@@ -25,5 +25,15 @@ public class Track(Uri uri)
 				Duration = TimeSpan.FromSeconds(await audioBuffer.GetDurationAsync());
 			}
 		);
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		if (AudioBuffer is null)
+		{
+			return;
+		}
+
+		await AudioBuffer.DisposeAsync();
 	}
 }

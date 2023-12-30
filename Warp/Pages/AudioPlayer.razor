@@ -1,6 +1,7 @@
 ﻿@page "/AudioPlayer"
 @using System.Globalization;
 @using KristofferStrube.Blazor.WebAudio
+@using Warp.Models.Audio
 
 <PageTitle>WebAudio - Audio Player</PageTitle>
 
@@ -9,7 +10,7 @@
 <div style="user-select: none;display:flex;flex-direction:row;" aria-label="Player controls">
 	<button class="media-control" aria-label="Randomize tracks" @onclick="RandomizeTracks">🔀</button>
 	<button class="media-control" aria-label="Previous track" @onclick="PreviousTrack">⏮</button>
-	@if (playing)
+	@if (_playState == PlayState.Playing)
 	{
 		<button class="media-control" aria-label="Pause" @onclick="PauseAsync">⏸</button>
 	}
@@ -17,18 +18,18 @@
 	{
 		<button class="media-control" aria-label="Play" @onclick="PlayAsync">⏯</button>
 	}
-	<button class="media-control" aria-label="Next track" @onclick="NextTrack">⏭</button>
+	<button class="media-control" aria-label="Next track" @onclick="NextTrackAsync">⏭</button>
 </div>
 
 <span style="width:5%; display:inline-block; text-align:right;">
-	@Math.Round(playTime, 0)
+	@Math.Round(playTime.TotalSeconds, 0)
 </span>
 
 <svg width="60%" viewBox="0 0 1 0.02" style="margin-left:5px; margin-right:5px;">
 	<rect fill="#bbb" x="0" y="0" width="1" height="0.02"></rect>
 	@if (_currentTrack is not null && _currentTrack.Duration != TimeSpan.Zero)
 	{
-		<rect fill="#555" x="0" y="0" width="@((playTime/_currentTrack.Duration.TotalSeconds).ToString(CultureInfo.InvariantCulture))" height="0.02"></rect>
+		<rect fill="#555" x="0" y="0" width="@((playTime.TotalSeconds/_currentTrack.Duration.TotalSeconds).ToString(CultureInfo.InvariantCulture))" height="0.02"></rect>
 	}
 </svg>
 
@@ -40,7 +41,7 @@
 	<ol>
 		@for (int i = 0; i < _tracks.Count; i++)
 		{
-			<li class="@(i == trackIndex ? "track-selected" : "track-unselected")">@_tracks[i].Name</li>
+			<li class="@(i == _trackIndex ? "track-selected" : "track-unselected")">@_tracks[i].Name</li>
 		}
 	</ol>
 </p>
