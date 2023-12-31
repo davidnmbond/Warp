@@ -16,9 +16,9 @@ public partial class AudioPlayer : IAsyncDisposable
 	private PlayState _playState = PlayState.Stopped;
 	private int _trackIndex = 0;
 	private TimeSpan playTime;
-	private TimeSpan startTime;
+	private TimeSpan _startTime;
 	private TimeSpan? pauseTime;
-	private TimeSpan offset;
+	private TimeSpan _offset;
 	private List<Track> _tracks = [
 		new(new("sounds/birdchirp.wav", UriKind.Relative)),
 		new(new("sounds/birdchirp2.wav", UriKind.Relative)),
@@ -47,7 +47,7 @@ public partial class AudioPlayer : IAsyncDisposable
 		{
 			if (_playState == PlayState.Playing && _currentTrack is not null)
 			{
-				playTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync()) - startTime + offset;
+				playTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync()) - _startTime + _offset;
 				if (playTime > _currentTrack.Duration)
 				{
 					await NextTrackAsync();
@@ -103,10 +103,13 @@ public partial class AudioPlayer : IAsyncDisposable
 		}
 		else
 		{
-			await _currentAudioBufferNode.StartAsync(when: 0, offset: offset.TotalSeconds);
+			await _currentAudioBufferNode.StartAsync(
+				when: 0, // How many seconds from now before playback should start
+				offset: _offset.TotalSeconds // How many seconds into the sound should playback start
+			);
 		}
 
-		startTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync());
+		_startTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync());
 		_playState = PlayState.Playing;
 	}
 
@@ -122,13 +125,13 @@ public partial class AudioPlayer : IAsyncDisposable
 
 		var currentTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync());
 		pauseTime = currentTime;
-		if (offset + currentTime - startTime > _currentTrack.Duration)
+		if (_offset + currentTime - _startTime > _currentTrack.Duration)
 		{
-			offset = TimeSpan.Zero;
+			_offset = TimeSpan.Zero;
 		}
 		else
 		{
-			offset += currentTime - startTime;
+			_offset += currentTime - _startTime;
 		}
 
 		_playState = PlayState.Paused;
@@ -150,7 +153,7 @@ public partial class AudioPlayer : IAsyncDisposable
 		// Switch track
 		_trackIndex = trackIndex;
 		await EnsureCurrentTrackLoadedAsync();
-		offset = TimeSpan.Zero;
+		_offset = TimeSpan.Zero;
 		playTime = TimeSpan.Zero;
 
 		// Resume if necessary
@@ -173,7 +176,7 @@ public partial class AudioPlayer : IAsyncDisposable
 			.ToList();
 
 		_trackIndex = 0;
-		offset = TimeSpan.Zero;
+		_offset = TimeSpan.Zero;
 		playTime = TimeSpan.Zero;
 
 		if (oldPlayState == PlayState.Playing)
