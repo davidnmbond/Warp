@@ -16,9 +16,9 @@ public partial class AudioPlayer : IAsyncDisposable
 	private PlayState _playState = PlayState.Stopped;
 	private int _trackIndex = 0;
 	private TimeSpan playTime;
-	private double startTime;
-	private double? pauseTime;
-	private double offset;
+	private TimeSpan startTime;
+	private TimeSpan? pauseTime;
+	private TimeSpan offset;
 	private List<Track> _tracks = [
 		new(new("sounds/birdchirp.wav", UriKind.Relative)),
 		new(new("sounds/birdchirp2.wav", UriKind.Relative)),
@@ -47,7 +47,7 @@ public partial class AudioPlayer : IAsyncDisposable
 		{
 			if (_playState == PlayState.Playing && _currentTrack is not null)
 			{
-				playTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync() - startTime + offset);
+				playTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync()) - startTime + offset;
 				if (playTime > _currentTrack.Duration)
 				{
 					await NextTrackAsync();
@@ -103,11 +103,10 @@ public partial class AudioPlayer : IAsyncDisposable
 		}
 		else
 		{
-			await _currentAudioBufferNode.StartAsync(when: 0, offset: offset);
+			await _currentAudioBufferNode.StartAsync(when: 0, offset: offset.TotalSeconds);
 		}
 
-		startTime = await _audioContext.GetCurrentTimeAsync();
-
+		startTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync());
 		_playState = PlayState.Playing;
 	}
 
@@ -121,11 +120,11 @@ public partial class AudioPlayer : IAsyncDisposable
 		await _currentAudioBufferNode.DisconnectAsync();
 		await _currentAudioBufferNode.StopAsync();
 
-		var currentTime = await _audioContext.GetCurrentTimeAsync();
+		var currentTime = TimeSpan.FromSeconds(await _audioContext.GetCurrentTimeAsync());
 		pauseTime = currentTime;
-		if (offset + currentTime - startTime > _currentTrack.Duration.TotalSeconds)
+		if (offset + currentTime - startTime > _currentTrack.Duration)
 		{
-			offset = 0;
+			offset = TimeSpan.Zero;
 		}
 		else
 		{
@@ -151,7 +150,7 @@ public partial class AudioPlayer : IAsyncDisposable
 		// Switch track
 		_trackIndex = trackIndex;
 		await EnsureCurrentTrackLoadedAsync();
-		offset = 0;
+		offset = TimeSpan.Zero;
 		playTime = TimeSpan.Zero;
 
 		// Resume if necessary
@@ -174,9 +173,8 @@ public partial class AudioPlayer : IAsyncDisposable
 			.ToList();
 
 		_trackIndex = 0;
-		offset = 0;
+		offset = TimeSpan.Zero;
 		playTime = TimeSpan.Zero;
-
 
 		if (oldPlayState == PlayState.Playing)
 		{
